@@ -1,0 +1,393 @@
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:newgame/extensions.dart';
+import 'package:newgame/gamepage.dart';
+
+class Home extends StatefulWidget {
+  const Home({super.key});
+
+  @override
+  State<Home> createState() => _HomeState();
+}
+
+class _HomeState extends State<Home> {
+  final firebaseAuth = FirebaseAuth.instance;
+  final firebaseFirestore = FirebaseFirestore.instance;
+
+  Map<String, dynamic>? userDetail;
+  Future<Map<String, dynamic>?> getCurentUserDetails() async {
+    try {
+      var document = await firebaseFirestore
+          .collection("users")
+          .doc(firebaseAuth.currentUser?.uid)
+          .get();
+      var user = document.data();
+      return (user);
+    } on FirebaseException catch (err) {
+      print(err.message);
+    }
+  }
+
+  Future logOut() async {
+    try {
+      await firebaseAuth.signOut();
+      setState(() {
+        userDetail = null;
+      });
+    } on FirebaseAuth catch (error) {}
+  }
+
+  Future login() async {
+    if (firebaseAuth.currentUser != null) {
+      showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+                title: Text("Already Register"),
+                actions: [
+                  Container(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.amber,
+                        ),
+                        onPressed: () async {
+                          Navigator.pop(context);
+                          await logOut();
+                        },
+                        child: Text(
+                          "Log Out",
+                          style: TextStyle(color: Colors.black),
+                        )),
+                  )
+                ],
+              ));
+    } else {
+      try {
+        var cred = await firebaseAuth.signInWithProvider(GoogleAuthProvider());
+        var document = await firebaseFirestore
+            .collection("users")
+            .doc(cred.user?.uid)
+            .get();
+        try {
+          var cred =
+              await firebaseAuth.signInWithProvider(GoogleAuthProvider());
+          var document = await firebaseFirestore
+              .collection("users")
+              .doc(cred.user?.uid)
+              .get();
+          var user = document.data();
+          if (user == null) {
+            Map<String, dynamic> userData = {
+              "name": cred.user?.email?.toUsername() ?? "User",
+              "email": cred.user?.email,
+              "profile": cred.additionalUserInfo?.profile?["picture"],
+              "coin": 0,
+            };
+            await firebaseFirestore
+                .collection("users")
+                .doc(cred.user?.uid)
+                .set(userData);
+            setState(() {
+              userDetail = userData;
+            });
+          } else {
+            setState(() {
+              userDetail = user;
+            });
+          }
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text("You have succesfully login"),
+            backgroundColor: Colors.green,
+          ));
+        } on FirebaseAuthException catch (error) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text("${error.message}"),
+            backgroundColor: Colors.red,
+          ));
+        }
+        var user = document.data();
+        if (user == null) {
+          Map<String, dynamic> userData = {
+            "name": cred.user?.email?.toUsername() ?? "User",
+            "email": cred.user?.email,
+            "profile": cred.additionalUserInfo?.profile?["picture"],
+            "coin": 0,
+          };
+          await firebaseFirestore
+              .collection("users")
+              .doc(cred.user?.uid)
+              .set(userData);
+          setState(() {
+            userDetail = userData;
+          });
+        } else {
+          setState(() {
+            userDetail = user;
+          });
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text("You have succesfully login"),
+          backgroundColor: Colors.green,
+        ));
+      } on FirebaseAuthException catch (error) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text("${error.message}"),
+          backgroundColor: Colors.red,
+        ));
+      }
+    }
+  }
+
+  @override
+  void initState() {
+    getCurentUserDetails().then((value) {
+      setState(() {
+        userDetail = value;
+      });
+      print("object");
+    });
+
+    super.initState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.amber,
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            const CircleAvatar(),
+            const SizedBox(
+              width: 10,
+            ),
+            GestureDetector(
+              onTap: login,
+              child: Text(
+                userDetail != null ? userDetail!["name"] : "Log In",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        centerTitle: false,
+        elevation: 5,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  height: MediaQuery.sizeOf(context).width / 2,
+                  width: MediaQuery.sizeOf(context).width / 2 - 20,
+                  decoration: BoxDecoration(
+                    color: Colors.amber,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+                const SizedBox(
+                  width: 10,
+                ),
+                Container(
+                  height: MediaQuery.sizeOf(context).width / 2,
+                  width: MediaQuery.sizeOf(context).width / 2 - 20,
+                  decoration: BoxDecoration(
+                    color: Colors.amber,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Center(
+                    child: Text(
+                      userDetail != null ? userDetail!["coin"].toString() : "0",
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 30,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 15).copyWith(
+                top: 20,
+              ),
+              child: const Divider(
+                thickness: 1,
+              ),
+            ),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.amber,
+                ),
+                onPressed: () {
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const GamePage()));
+                },
+                child: const Text(
+                  "Pay with computer",
+                  style: TextStyle(
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.amber,
+                ),
+                onPressed: () {
+                  showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                          title: const Text(
+                            "Kindly Log In",
+                            textAlign: TextAlign.center,
+                          ),
+                          alignment: Alignment.center,
+                          content: SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.amber,
+                              ),
+                              onPressed: firebaseAuth.currentUser == null
+                                  ? () {}
+                                  : null,
+                              child: Text(firebaseAuth.currentUser == null
+                                  ? " Login With gmail"
+                                  : ""),
+                            ),
+                          )));
+                },
+                child: const Text(
+                  "Pay with other user",
+                  style: TextStyle(
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 15).copyWith(
+                top: 20,
+              ),
+              child: const Divider(
+                thickness: 1,
+              ),
+            ),
+            const Align(
+              alignment: Alignment.bottomLeft,
+              child: Text(
+                "Top Users",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            Expanded(
+                child: StreamBuilder(
+              stream: firebaseFirestore.collection("users").snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Container(
+                    child: const Column(
+                      children: [
+                        Icon(
+                          Icons.no_accounts,
+                          size: 150,
+                          color: Colors.amber,
+                        ),
+                        Text(
+                          "Waiting",
+                          style: TextStyle(
+                            fontSize: 25,
+                          ),
+                        )
+                      ],
+                    ),
+                  );
+                } else if (snapshot.hasError) {
+                  return Container(
+                    child: const Column(
+                      children: [
+                        Icon(
+                          Icons.not_interested,
+                          size: 150,
+                          color: Colors.amber,
+                        ),
+                        Text(
+                          "Check your internet connection",
+                          style: TextStyle(
+                            fontSize: 25,
+                          ),
+                        )
+                      ],
+                    ),
+                  );
+                } else if (snapshot.hasData) {
+                  var rawdata = snapshot.data;
+                  var listOfData = rawdata!.docs;
+
+                  return ListView.builder(
+                      itemCount: listOfData.length,
+                      itemBuilder: (context, index) {
+                        var data = listOfData[index].data();
+                        print("this is the data ${data}");
+
+                        return ListTile(
+                          leading: CircleAvatar(
+                            child: Container(
+                                decoration:
+                                    BoxDecoration(shape: BoxShape.circle),
+                                child: Image.network(
+                                  data["profile"],
+                                )),
+                          ),
+                          title: Text(data["name"]),
+                          trailing: Text(data["coin"].toString()),
+                        );
+                      });
+                } else {
+                  return Container(
+                    child: const Column(
+                      children: [
+                        Icon(
+                          Icons.no_accounts,
+                          size: 150,
+                          color: Colors.amber,
+                        ),
+                        Text(
+                          "error",
+                          style: TextStyle(
+                            fontSize: 25,
+                          ),
+                        )
+                      ],
+                    ),
+                  );
+                }
+              },
+            )),
+          ],
+        ),
+      ),
+    );
+  }
+}

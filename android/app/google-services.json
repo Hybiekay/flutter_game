@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "1079346067153",
+    "project_id": "flutter-game-21fb8",
+    "storage_bucket": "flutter-game-21fb8.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1079346067153:android:919f0ee7556248deceb7f0",
+        "android_client_info": {
+          "package_name": "com.example.newgame"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1079346067153-8sqbn2omgfmc7gvs40b6cin079s9bfis.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDoljDpmDY6gcslmOKRyIostxJWra6TnpQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1079346067153-8sqbn2omgfmc7gvs40b6cin079s9bfis.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

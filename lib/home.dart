@@ -17,6 +17,7 @@ class _HomeState extends State<Home> {
   final firebaseFirestore = FirebaseFirestore.instance;
 
   Map<String, dynamic>? userDetail;
+
   Future<Map<String, dynamic>?> getCurentUserDetails() async {
     try {
       var document = await firebaseFirestore
@@ -26,8 +27,8 @@ class _HomeState extends State<Home> {
       var user = document.data();
       return (user);
     } on FirebaseException catch (err) {
-      print(err.message);
     }
+    return null;
   }
 
   Future logOut() async {
@@ -36,7 +37,9 @@ class _HomeState extends State<Home> {
       setState(() {
         userDetail = null;
       });
-    } on FirebaseAuth catch (error) {}
+    } on FirebaseException catch (error) {
+      print(error.message);
+    }
   }
 
   Future login() async {
@@ -44,7 +47,7 @@ class _HomeState extends State<Home> {
       showDialog(
           context: context,
           builder: (context) => AlertDialog(
-                title: Text("Already Register"),
+                title: const Text("Already Register"),
                 actions: [
                   Container(
                     width: double.infinity,
@@ -56,7 +59,7 @@ class _HomeState extends State<Home> {
                           Navigator.pop(context);
                           await logOut();
                         },
-                        child: Text(
+                        child: const Text(
                           "Log Out",
                           style: TextStyle(color: Colors.black),
                         )),
@@ -84,6 +87,7 @@ class _HomeState extends State<Home> {
               "email": cred.user?.email,
               "profile": cred.additionalUserInfo?.profile?["picture"],
               "coin": 0,
+              "uid": cred.user?.uid
             };
             await firebaseFirestore
                 .collection("users")
@@ -114,6 +118,7 @@ class _HomeState extends State<Home> {
             "email": cred.user?.email,
             "profile": cred.additionalUserInfo?.profile?["picture"],
             "coin": 0,
+            "uid": cred.user?.uid
           };
           await firebaseFirestore
               .collection("users")
@@ -169,7 +174,7 @@ class _HomeState extends State<Home> {
               onTap: login,
               child: Text(
                 userDetail != null ? userDetail!["name"] : "Log In",
-                style: TextStyle(
+                style: const TextStyle(
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -239,7 +244,7 @@ class _HomeState extends State<Home> {
                           builder: (context) => const GamePage()));
                 },
                 child: const Text(
-                  "Pay with computer",
+                  "Play with computer",
                   style: TextStyle(
                     color: Colors.black,
                   ),
@@ -253,31 +258,40 @@ class _HomeState extends State<Home> {
                   backgroundColor: Colors.amber,
                 ),
                 onPressed: () {
-                  showDialog(
+                  if (firebaseAuth.currentUser != null) {
+                    showDialog(
                       context: context,
-                      builder: (context) => AlertDialog(
-                          title: const Text(
-                            "Kindly Log In",
-                            textAlign: TextAlign.center,
-                          ),
-                          alignment: Alignment.center,
-                          content: SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.amber,
-                              ),
-                              onPressed: firebaseAuth.currentUser == null
-                                  ? () {}
-                                  : null,
-                              child: Text(firebaseAuth.currentUser == null
-                                  ? " Login With gmail"
-                                  : ""),
+                      builder: (context) => ShowOtherUSer(
+                        userDetail: userDetail!,
+                      ),
+                    );
+                  } else {
+                    showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                            title: const Text(
+                              "Kindly Log In",
+                              textAlign: TextAlign.center,
                             ),
-                          )));
+                            alignment: Alignment.center,
+                            content: SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.amber,
+                                ),
+                                onPressed: firebaseAuth.currentUser == null
+                                    ? () {}
+                                    : null,
+                                child: Text(firebaseAuth.currentUser == null
+                                    ? " Login With gmail"
+                                    : ""),
+                              ),
+                            )));
+                  }
                 },
                 child: const Text(
-                  "Pay with other user",
+                  "Play with other user",
                   style: TextStyle(
                     color: Colors.black,
                   ),
@@ -348,17 +362,15 @@ class _HomeState extends State<Home> {
                   return ListView.builder(
                       itemCount: listOfData.length,
                       itemBuilder: (context, index) {
+                        listOfData.sort(
+                            (high, low) => low["coin"].compareTo(high["coin"]));
                         var data = listOfData[index].data();
-                        print("this is the data ${data}");
 
                         return ListTile(
                           leading: CircleAvatar(
-                            child: Container(
-                                decoration:
-                                    BoxDecoration(shape: BoxShape.circle),
-                                child: Image.network(
-                                  data["profile"],
-                                )),
+                            backgroundImage: NetworkImage(
+                              data["profile"],
+                            ),
                           ),
                           title: Text(data["name"]),
                           trailing: Text(data["coin"].toString()),
@@ -385,6 +397,244 @@ class _HomeState extends State<Home> {
                 }
               },
             )),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ShowOtherUSer extends StatefulWidget {
+  final Map userDetail;
+  const ShowOtherUSer({
+    super.key,
+    required this.userDetail,
+  });
+
+  @override
+  State<ShowOtherUSer> createState() => _ShowOtherUSerState();
+}
+
+class _ShowOtherUSerState extends State<ShowOtherUSer> {
+  TextEditingController searchController = TextEditingController();
+  final firestore = FirebaseFirestore.instance;
+
+  bool isSearch = false;
+
+  initialiseGame(opponent) async {
+    var docs = await firestore
+        .collection("users")
+        .doc(FirebaseAuth.instance.currentUser?.uid)
+        .collection("games")
+        .doc(opponent["uid"])
+        .get();
+    var opponentData = docs.data();
+    if (opponentData == null) {
+      var docs = await firestore
+          .collection("users")
+          .doc(opponent['uid'])
+          .collection("games")
+          .doc(FirebaseAuth.instance.currentUser?.uid)
+          .get();
+
+      var myData = docs.data();
+
+      if (myData == null) {
+        var gameData = {
+          "name": widget.userDetail["name"],
+          "winingCount": 0,
+          "coin": 0,
+          "uid": widget.userDetail["uid"],
+          "opponentName": opponent["name"],
+          "opponentWiningCount": 0,
+          "opponentcoin": 0,
+          "opponentUid": opponent["uid"]
+        };
+        await firestore
+            .collection("users")
+            .doc(FirebaseAuth.instance.currentUser?.uid)
+            .collection("games")
+            .doc(opponent["uid"])
+            .set(gameData);
+
+        await firestore
+            .collection("users")
+            .doc(opponent["uid"])
+            .collection("games")
+            .doc(FirebaseAuth.instance.currentUser?.uid)
+            .set(gameData);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: Container(
+        height: 500,
+        width: double.infinity,
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(
+                vertical: 12,
+                horizontal: 10,
+              ),
+              child: TextField(
+                controller: searchController,
+                onChanged: (v) {
+                  if (v != '') {
+                    setState(() {
+                      isSearch = true;
+                    });
+                    print("you are seaching $v");
+                  } else {
+                    setState(() {
+                      isSearch = false;
+                    });
+                    print("you stop seaching $v");
+                  }
+                },
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  hintText: "Search your opponent",
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                  ),
+                  suffixIcon: const Icon(Icons.search),
+                ),
+              ),
+            ),
+            Expanded(
+                child: isSearch
+                    ? StreamBuilder(
+                        stream: firestore
+                            .collection("users")
+                            .where(
+                              "name",
+                              isGreaterThanOrEqualTo: searchController.text,
+                            )
+                            .snapshots(),
+                        builder:
+                            (BuildContext context, AsyncSnapshot snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(child: Text("Searching......"));
+                          } else if (snapshot.hasData) {
+                            List rawData = snapshot.data?.docs;
+                            if (rawData.isEmpty) {
+                              return Container(
+                                child: const Column(
+                                  children: [
+                                    Icon(
+                                      Icons.not_interested,
+                                      size: 150,
+                                      color: Colors.amber,
+                                    ),
+                                    Text(
+                                      "No One Found",
+                                      style: TextStyle(
+                                        fontSize: 25,
+                                      ),
+                                    )
+                                  ],
+                                ),
+                              );
+                            } else {
+                              return ListView.builder(
+                                  itemCount: rawData.length,
+                                  itemBuilder: (context, index) {
+                                    var user = rawData[index].data();
+                                    print(user);
+                                    return ListTile(
+                                      leading: CircleAvatar(
+                                        backgroundImage:
+                                            NetworkImage(user["profile"]),
+                                      ),
+                                      title: Text(user["name"]),
+                                    );
+                                  });
+                            }
+                          } else {
+                            return Container(
+                              child: const Column(
+                                children: [
+                                  Icon(
+                                    Icons.not_interested,
+                                    size: 150,
+                                    color: Colors.amber,
+                                  ),
+                                  Text(
+                                    "Check your internet connection",
+                                    style: TextStyle(
+                                      fontSize: 25,
+                                    ),
+                                  )
+                                ],
+                              ),
+                            );
+                          }
+                        },
+                      )
+                    : FutureBuilder(
+                        future: firestore.collection("users").get(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(
+                                color: Colors.amber,
+                              ),
+                            );
+                          } else if (snapshot.hasError) {
+                            return const Center(
+                              child: Text("Check your Internet connection"),
+                            );
+                          } else if (snapshot.hasData &&
+                              snapshot.data!.docs.isEmpty) {
+                            return Container(
+                              child: const Column(
+                                children: [
+                                  Icon(
+                                    Icons.not_interested,
+                                    size: 150,
+                                    color: Colors.amber,
+                                  ),
+                                  Text(
+                                    "No One Found",
+                                    style: TextStyle(
+                                      fontSize: 25,
+                                    ),
+                                  )
+                                ],
+                              ),
+                            );
+                          } else {
+                            var rawdata = snapshot.data?.docs;
+
+                            return ListView.builder(
+                                itemCount: rawdata?.length ?? 0,
+                                itemBuilder: (context, index) {
+                                  var user = rawdata![index].data();
+                                  return GestureDetector(
+                                    onTap: () async {
+                                      print("start");
+                                      await initialiseGame(user);
+                                      print("end");
+                                    },
+                                    child: ListTile(
+                                      leading: CircleAvatar(
+                                        backgroundImage:
+                                            NetworkImage(user["profile"]),
+                                      ),
+                                      title: Text("${user["name"]}"),
+                                    ),
+                                  );
+                                });
+                          }
+                        },
+                      ))
           ],
         ),
       ),
